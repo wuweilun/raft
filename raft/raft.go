@@ -115,7 +115,7 @@ func (r *Raft) appendEntries(req *pb.AppendEntriesRequest) (*pb.AppendEntriesRes
 		// Hint: use `getLog` to get log with ID equals to prevLogId
 		// Log: r.logger.Info("the given previous log from leader is missing or mismatched", zap.Uint64("prevLogId", prevLogId), zap.Uint64("prevLogTerm", prevLogTerm), zap.Uint64("logTerm", log.GetTerm()))
 		log := r.getLog(prevLogId)
-		if log == nil || log.GetTerm() != prevLogTerm {
+		if log.GetTerm() != prevLogTerm {
 			r.logger.Info("the given previous log from leader is missing or mismatched", zap.Uint64("prevLogId", prevLogId), zap.Uint64("prevLogTerm", prevLogTerm), zap.Uint64("logTerm", log.GetTerm()))
 			return &pb.AppendEntriesResponse{Term: r.currentTerm, Success: false}, nil
 		}
