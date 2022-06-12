@@ -428,19 +428,33 @@ func (r *Raft) broadcastAppendEntries(ctx context.Context, appendEntriesResultCh
 		// Hint: set `req` with the correct fields (entries, prevLogId and prevLogTerm MUST be set)
 		// Hint: use `getLog` to get specific log, `getLogs` to get all logs after and include the specific log Id
 		// Log: r.logger.Debug("send append entries", zap.Uint32("peer", peerId), zap.Any("request", req), zap.Int("entries", len(entries)))
+
 		entries := r.getLogs(r.nextIndex[peerId])
 		prevLog := r.getLog(r.nextIndex[peerId] - 1)
 		req := &pb.AppendEntriesRequest{
 			Term: r.currentTerm,
 			LeaderId: r.id,
 			LeaderCommitId: r.commitIndex,
-			Entries: entries,
+		}		
+		// empty 
+		if prevLog == nil {
+			req = &pb.AppendEntriesRequest{
+				Term: r.currentTerm,
+				LeaderId: r.id,
+				LeaderCommitId: r.commitIndex,
+				Entries: entries,
+			}
+		} else { // with prevLog
+			req = &pb.AppendEntriesRequest{
+				Term: r.currentTerm,
+				LeaderId: r.id,
+				LeaderCommitId: r.commitIndex,
+				Entries: entries,
+				PrevLogId: prevLog.GetId(), 
+				PrevLogTerm: prevLog.GetTerm(),
+			}
 		}
-		if prevLog != nil {
-			req.PrevLogId = prevLog.GetId()
-			req.PrevLogTerm = prevLog.GetTerm()
-		}
-		// Not solve
+		r.logger.Debug("send append entries", zap.Uint32("peer", peerId), zap.Any("request", req), zap.Int("entries", len(entries)))
 		// TODO: (A.14) & (B.6)
 		// Hint: modify the code to send `AppendEntries` RPCs in parallel
 		go func(){
@@ -499,7 +513,6 @@ func (r *Raft) handleAppendEntriesResult(result *appendEntriesResult) {
 		// Hint: find if such N exists
 		// Hint: if such N exists, use `setCommitIndex` to set commit index
 		// Hint: if such N exists, use `applyLogs` to apply logs
-		// Not solve 
 		replicas := 1
 
 		for peerId := range r.peers {
@@ -508,12 +521,10 @@ func (r *Raft) handleAppendEntriesResult(result *appendEntriesResult) {
 			}
 		}
 
-		if replicas >= replicasNeeded {
-			if logs[i].GetTerm() == r.currentTerm {
-				r.setCommitIndex(logs[i].Id)
-				r.applyLogs(r.applyCh)
-				break
-			}
+		if replicas >= replicasNeeded && logs[i].GetTerm() == r.currentTerm{
+			r.setCommitIndex(logs[i].Id)
+			r.applyLogs(r.applyCh)
+			break
 		}
 	}
 }
